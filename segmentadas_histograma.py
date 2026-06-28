@@ -43,6 +43,3 @@ def freq_teste():
     print("Valores e frequência na imagem: \n")
 
     print(valores, ": ", frequencia, " vezes")
-
-calcula_frequencias()
-exibir_imagem_histograma()

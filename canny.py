@@ -5,6 +5,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import ndimage
 
+def ler_dicom(nome_arquivo):
+    img = pydicom.dcmread(in_file(nome_arquivo))
+    img = img.pixel_array.astype(float)
+
+    return img
+
+def ler_png(nome_arquivo):
+    original = np.array(Image.open(in_file(nome_arquivo)).convert('L'))
+    original = original.astype(float)
+
+    return original
+
 # kernel do filtro gaussiano para suavizar imagem
 def gaussian_kernel(size, sigma=1):
     size = int(size) // 2
@@ -13,6 +25,22 @@ def gaussian_kernel(size, sigma=1):
     g =  np.exp(-((x**2 + y**2) / (2.0*sigma**2))) * normal
     return g
 
+def aplicar_filtro(img):
+    kernel = gaussian_kernel(5)
+    kernel /= kernel.sum()
+
+    k = kernel.shape[0] // 2
+    saida = np.zeros_like(img, dtype=np.float32)
+
+    # Adiciona bordas à imagem
+    img_padded = np.pad(img, k, mode='reflect')
+
+    for i in range(img.shape[0]):
+        for j in range(img.shape[1]):
+            regiao = img_padded[i:i+2*k+1, j:j+2*k+1]
+            saida[i, j] = np.sum(regiao * kernel)
+
+    return saida
 
 def sobel_filters(img):
     kx = np.array([[-1, 0, 1],
@@ -32,21 +60,6 @@ def sobel_filters(img):
     theta = np.arctan2(iy, ix) # ângulo do gradiente
 
     return g, theta
-
-
-def aplicar_filtro(img, kernel):
-    k = kernel.shape[0] // 2
-    saida = np.zeros_like(img, dtype=np.float32)
-
-    # Adiciona bordas à imagem
-    img_padded = np.pad(img, k, mode='reflect')
-
-    for i in range(img.shape[0]):
-        for j in range(img.shape[1]):
-            regiao = img_padded[i:i+2*k+1, j:j+2*k+1]
-            saida[i, j] = np.sum(regiao * kernel)
-
-    return saida
 
 #afina as bordas
 def non_max_suppression(img, D):
@@ -90,7 +103,7 @@ def non_max_suppression(img, D):
 
 #usando limite duplo para separar as bordas em fortes, médias e fracas a partir dos limiares passados nos parâmetros
 #se for necessário, calibre o filtro inserindo outros valores nos Ratios
-def threshold(img, lowThresholdRatio=0.05, highThresholdRatio=0.05):
+def threshold(img, lowThresholdRatio=0.05, highThresholdRatio=0.018):
     highThreshold = img.max() * highThresholdRatio #detecta o pixel de maior valor e calcula o limiar a partir dele
     lowThreshold = highThreshold * lowThresholdRatio
     #calcula o limiar para pixels fracos a partir do limiar para pixels fortes
@@ -134,7 +147,6 @@ def hysteresis(img, weak, strong=255):
                     pass
     return img
 
-
 def bordas_vermelhas(img_cinza):
     x, y = img_cinza.shape #registrando tamanho da imagem
     RED = (255, 0, 0, 255)
@@ -151,21 +163,81 @@ def bordas_vermelhas(img_cinza):
             else:
                 img_contorno_vermelho.putpixel((i, j), TRANSP)
 
-    img_contorno_vermelho.save(out_file("contorno_vermelho_im2_gauss6_005_005.png"))
+    img_contorno_vermelho.save(out_file("contorno_vermelho_im2_gauss5_005_002.png"))
     return img_contorno_vermelho
 
+def mostra_tudo(original, sobel, non_max, limite_duplo, histerese, vermelha):
+    fig, ax = plt.subplots(4, 2, figsize=(50, 25))
+
+    ax[0, 0].imshow(original, cmap='gray')
+    ax[0, 0].set_title("Original")
+    ax[0, 0].axis('off')
+
+    ax[0, 1].imshow(gaussiano, cmap='gray')
+    ax[0, 1].set_title("Filtro Gaussiano")
+    ax[0, 1].axis('off')
+
+    ax[1, 0].imshow(sobel, cmap='gray')
+    ax[1, 0].set_title("Filtro Sobel")
+    ax[1, 0].axis('off')
+
+    ax[1, 1].imshow(non_max, cmap='gray')
+    ax[1, 1].set_title("Supressão de não-máximos \nsobre filtro sobel")
+    ax[1, 1].axis('off')
+
+    ax[2, 0].imshow(limite_duplo, cmap='gray')
+    ax[2, 0].set_title("Limite duplo sobre \nsupressão de não-máximos")
+    ax[2, 0].axis('off')
+
+    ax[2, 1].imshow(histerese, cmap='gray')
+    ax[2, 1].set_title("Histerese sobre limite duplo")
+    ax[2, 1].axis('off')
+
+    ax[3, 0].imshow(vermelha)
+    ax[3, 0].set_title("bordas em vermelho")
+    ax[3, 0].axis('off')
+
+    ax[3, 1].imshow(original, cmap='gray')
+    ax[3, 1].imshow(vermelha)
+    ax[3, 1].axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
+def somente_contornos(original, vermelha):
+    fig, ax = plt.subplots(1, 2, figsize=(40, 20))
+
+    ax[0].imshow(original, cmap="gray")
+    ax[0].set_title("Original")
+    ax[0].axis("off")
+
+    ax[1].imshow(original, cmap="gray")
+    ax[1].imshow(vermelha)
+    ax[1].set_title("Sobreposição do contorno vermelho")
+    ax[1].axis("off")
+
+    plt.tight_layout()
+    plt.show()
 
 #---------------------------
 # lendo a imagem e aplicando os filtros
 #---------------------------
 
 if __name__ == '__main__':
-    original = np.array(Image.open(in_file("segmentada1.png")).convert('L'))
-    original = original.astype(float)
 
-    kernel_g = gaussian_kernel(3)
-    kernel_g /= kernel_g.sum()
-    gaussiano = aplicar_filtro(original, kernel_g)
+    opcao = int(input("[1] Usar imagem DICOM\n[2] Usar imagem PNG\nSua resposta: "))
+    while True:
+        if opcao == 1:
+            original = ler_dicom("img2.dcm")
+            break
+        elif opcao == 2:
+            original = ler_png("img2.png")
+            break
+        else:
+            print("Opção inválida.")
+            opcao = input("[1] Usar imagem DICOM\n[2] Usar imagem PNG\nSua resposta: ")
+
+    gaussiano = aplicar_filtro(original)
 
     sobel, theta_s = sobel_filters(gaussiano)
 
@@ -178,57 +250,13 @@ if __name__ == '__main__':
     vermelha = bordas_vermelhas(histerese)
 
     resp = int(input("[1] Ver processo completo\n[2] comparar imagem original com contorno sobreposto\nSua resposta: "))
-    if resp == 1:
-        fig, ax = plt.subplots(4, 2, figsize=(50, 25))
-
-        ax[0, 0].imshow(original, cmap='gray')
-        ax[0, 0].set_title("Original")
-        ax[0, 0].axis('off')
-
-        ax[0, 1].imshow(gaussiano, cmap='gray')
-        ax[0, 1].set_title("Filtro Gaussiano")
-        ax[0, 1].axis('off')
-
-        ax[1, 0].imshow(sobel, cmap='gray')
-        ax[1, 0].set_title("Filtro Sobel")
-        ax[1, 0].axis('off')
-
-        ax[1, 1].imshow(non_max, cmap='gray')
-        ax[1, 1].set_title("Supressão de não-máximos \nsobre filtro sobel")
-        ax[1, 1].axis('off')
-
-        ax[2, 0].imshow(limite_duplo, cmap='gray')
-        ax[2, 0].set_title("Limite duplo sobre \nsupressão de não-máximos")
-        ax[2, 0].axis('off')
-
-        ax[2, 1].imshow(histerese, cmap='gray')
-        ax[2, 1].set_title("Histerese sobre limite duplo")
-        ax[2, 1].axis('off')
-
-        ax[3, 0].imshow(vermelha)
-        ax[3, 0].set_title("bordas em vermelho")
-        ax[3, 0].axis('off')
-
-        ax[3, 1].imshow(original, cmap='gray')
-        ax[3, 1].imshow(vermelha)
-        ax[3, 1].axis('off')
-
-        plt.tight_layout()
-        plt.show()
-
-    elif resp == 2:
-        fig, ax = plt.subplots(1, 2, figsize=(40, 20))
-
-        ax[0].imshow(original, cmap="gray")
-        ax[0].set_title("Original")
-        ax[0].axis("off")
-
-        ax[1].imshow(original, cmap="gray")
-        ax[1].imshow(vermelha)
-        ax[1].set_title("Sobreposição do contorno vermelho")
-        ax[1].axis("off")
-
-        plt.tight_layout()
-        plt.show()
-    else:
-        print("comando inválido")
+    while True:
+        if resp == 1:
+            mostra_tudo(original, sobel, non_max, limite_duplo, histerese, vermelha)
+            break
+        elif resp == 2:
+            somente_contornos(original, vermelha)
+            break
+        else:
+            print("Comando inválido")
+            resp = input("[1] Ver processo completo\n[2] comparar imagem original com contorno sobreposto\nSua resposta: ")

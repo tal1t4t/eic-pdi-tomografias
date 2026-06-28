@@ -1,9 +1,12 @@
 import pydicom
 from utils import in_file, out_file
 
-dicomfile = pydicom.dcmread(in_file("com_nome.dcm"))
-dicomfile.PatientName = "Anonimo123"
-dicomfile.PatientID = "Anonimo123"
+def tira_nome(img_dicom):
+    dicomfile = pydicom.dcmread(img_dicom)
 
-dicomfile.save_as(out_file("anonimo.dcm"))
-print(pydicom.dcmread(out_file("anonimo.dcm")))
+    # futuramente deixar as atribuição num formato aleatório
+    dicomfile.PatientID = "Anonimo123"
+    dicomfile.PatientName = "Anonimo123"
+
+    # mudar o caminho de salvamento depois que alterar os diretórios
+    dicomfile.save_as(out_file(dicomfile.PatientName, ".dcm"))

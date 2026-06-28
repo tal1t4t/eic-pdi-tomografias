@@ -43,19 +43,22 @@ def find_best_threshold(im):
     best_threshold = threshold_range[np.argmin(criterias)]
     return best_threshold
 
+def exibe_resultado(im, im_otsu):
+    fig, ax = plt.subplots(1, 2, figsize=(20,10))
 
-im = np.asarray(Image.open(in_file("img2.png")).convert('L'))
-im_otsu = threshold_image(im, find_best_threshold(im))
+    ax[0].imshow(im, cmap='gray')
+    ax[0].set_title("Original")
+    ax[0].axis("off")
 
-fig, ax = plt.subplots(1, 2, figsize=(20,10))
+    ax[1].imshow(im_otsu, cmap='gray')
+    ax[1].set_title("Imagem com método de Otsu")
+    ax[1].axis("off")
 
-ax[0].imshow(im, cmap='gray')
-ax[0].set_title("Original")
-ax[0].axis("off")
+    plt.tight_layout()
+    plt.show()
 
-ax[1].imshow(im_otsu, cmap='gray')
-ax[1].set_title("Imagem com método de Otsu")
-ax[1].axis("off")
+if __name__ == "__main__":
+    im = np.asarray(Image.open(in_file("img2.png")).convert('L'))
+    im_otsu = threshold_image(im, find_best_threshold(im))
 
-plt.tight_layout()
-plt.show()
+    exibe_resultado(im, im_otsu)
