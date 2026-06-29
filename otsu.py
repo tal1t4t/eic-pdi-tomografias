@@ -57,8 +57,12 @@ def exibe_resultado(im, im_otsu):
     plt.tight_layout()
     plt.show()
 
+def abre_imagem(img):
+    im = np.asarray(Image.open(in_file(img)).convert('L'))
+    return im
+
 if __name__ == "__main__":
-    im = np.asarray(Image.open(in_file("img2.png")).convert('L'))
+    im = abre_imagem("img2.png")
     im_otsu = threshold_image(im, find_best_threshold(im))
 
     exibe_resultado(im, im_otsu)
