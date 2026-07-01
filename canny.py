@@ -6,6 +6,11 @@ import pydicom
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import ndimage
+import tkinter
+
+nome_original = "img2"
+
+tam_kernel_gauss = 3
 
 def ler_dicom(nome_arquivo):
     img = pydicom.dcmread(in_file(nome_arquivo))
@@ -19,6 +24,10 @@ def ler_png(nome_arquivo):
 
     return original
 
+# função para transformar arrays numpy em imagem do PIL
+def array_para_imagem(img):
+    return Image.fromarray(img.astype(np.uint8))
+
 # kernel do filtro gaussiano para suavizar imagem
 def gaussian_kernel(size, sigma=1):
     size = int(size) // 2
@@ -28,7 +37,7 @@ def gaussian_kernel(size, sigma=1):
     return g
 
 def aplicar_filtro(img):
-    kernel = gaussian_kernel(5)
+    kernel = gaussian_kernel(tam_kernel_gauss)
     kernel /= kernel.sum()
 
     k = kernel.shape[0] // 2
@@ -42,6 +51,9 @@ def aplicar_filtro(img):
             regiao = img_padded[i:i+2*k+1, j:j+2*k+1]
             saida[i, j] = np.sum(regiao * kernel)
 
+    #salvamento da img
+    img_gauss = array_para_imagem(saida)
+    img_gauss.save(out_file(f"{nome_original}_gauss{tam_kernel_gauss}.png"))
     return saida
 
 def sobel_filters(img):
@@ -60,6 +72,10 @@ def sobel_filters(img):
     g = np.hypot(ix, iy)
     g = g / g.max() * 255 # deixa os resultados no intervalo [0, 255]
     theta = np.arctan2(iy, ix) # ângulo do gradiente
+
+    #salvamento da img
+    img_sobel = array_para_imagem(g)
+    img_sobel.save(out_file(f"{nome_original}_g{tam_kernel_gauss}_sobel.png"))
 
     return g, theta
 
@@ -101,6 +117,8 @@ def non_max_suppression(img, D):
             except IndexError as e:
                 pass
 
+    img_naomax = array_para_imagem(Z)
+    img_naomax.save(out_file(f"{nome_original}_naomax_g{tam_kernel_gauss}.png"))
     return Z
 
 #usando limite duplo para separar as bordas em fortes, médias e fracas a partir dos limiares passados nos parâmetros
@@ -129,9 +147,20 @@ def threshold(img, lowThresholdRatio=0.05, highThresholdRatio=0.018):
     res[strong_i, strong_j] = strong
     res[weak_i, weak_j] = weak
 
-    return res, weak, strong
 
-def hysteresis(img, weak, strong=255):
+    # salvando a imagem
+    baixo = str(lowThresholdRatio)
+    baixo = baixo.replace('.', '')
+
+    alto = str(highThresholdRatio)
+    alto = alto.replace('.', '')
+
+    img_threshold = array_para_imagem(res)
+    img_threshold.save(out_file(f"{nome_original}_threshold_g{tam_kernel_gauss}_{baixo}_{alto}.png"))
+
+    return res, weak, strong, lowThresholdRatio, highThresholdRatio
+
+def hysteresis(img, baixo, alto, weak, strong=255):
 # analisa os pixels fracos verificando se ao redor deles há pelo menos um pixel forte.
 # se houver, este pixel passa a ser forte também
     M, N = img.shape
@@ -147,9 +176,19 @@ def hysteresis(img, weak, strong=255):
                         img[i, j] = 0
                 except IndexError as e:
                     pass
+
+    # salvando a imagem
+    baixo = str(baixo)
+    baixo = baixo.replace('.', '')
+
+    alto = str(alto)
+    alto = alto.replace('.', '')
+
+    img_histerese = array_para_imagem(img)
+    img_histerese.save(out_file(f"{nome_original}_histerese_g{tam_kernel_gauss}_{baixo}_{alto}.png"))
     return img
 
-def bordas_vermelhas(img_cinza):
+def bordas_vermelhas(img_cinza, lowThresholdRatio, highThresholdRatio):
     x, y = img_cinza.shape #registrando tamanho da imagem
     RED = (255, 0, 0, 255)
     TRANSP = (255, 255, 255, 0)
@@ -165,7 +204,14 @@ def bordas_vermelhas(img_cinza):
             else:
                 img_contorno_vermelho.putpixel((i, j), TRANSP)
 
-    img_contorno_vermelho.save(out_file("contorno_vermelho_im2_gauss5_005_002.png"))
+    baixo = str(lowThresholdRatio)
+    baixo = baixo.replace('.', '')
+
+    alto = str(highThresholdRatio)
+    alto = alto.replace('.', '')
+
+    nome_img = f"borda_verm_{nome_original}_gauss{3}_{baixo}_{alto}.png"
+    img_contorno_vermelho.save(out_file(nome_img))
     return img_contorno_vermelho
 
 def mostra_tudo(original, sobel, non_max, limite_duplo, histerese, vermelha):
@@ -230,10 +276,10 @@ if __name__ == '__main__':
     opcao = int(input("[1] Usar imagem DICOM\n[2] Usar imagem PNG\nSua resposta: "))
     while True:
         if opcao == 1:
-            original = ler_dicom("img2.dcm")
+            original = ler_dicom(f"{nome_original}.dcm")
             break
         elif opcao == 2:
-            original = ler_png("img2.png")
+            original = ler_png(f"{nome_original}.png")
             break
         else:
             print("Opção inválida.")
@@ -245,11 +291,11 @@ if __name__ == '__main__':
 
     non_max = non_max_suppression(sobel, theta_s)
 
-    limite_duplo, pixel_fraco, pixel_forte = threshold(non_max)
+    limite_duplo, pixel_fraco, pixel_forte, lowThresholdRatio, highThresholdRatio = threshold(non_max)
 
-    histerese = hysteresis(limite_duplo, pixel_fraco, pixel_forte)
+    histerese = hysteresis(limite_duplo, lowThresholdRatio, highThresholdRatio, pixel_fraco, pixel_forte)
 
-    vermelha = bordas_vermelhas(histerese)
+    vermelha = bordas_vermelhas(histerese, lowThresholdRatio, highThresholdRatio)
 
     resp = int(input("[1] Ver processo completo\n[2] comparar imagem original com contorno sobreposto\nSua resposta: "))
     while True:
@@ -262,3 +308,4 @@ if __name__ == '__main__':
         else:
             print("Comando inválido")
             resp = input("[1] Ver processo completo\n[2] comparar imagem original com contorno sobreposto\nSua resposta: ")
+
