@@ -1,3 +1,5 @@
+#código base: https://medium.com/@vignesh.g1609/image-segmentation-using-otsu-threshold-selection-method-856ccdacf22
+
 from utils import out_file, in_file
 import numpy as np
 from PIL import Image

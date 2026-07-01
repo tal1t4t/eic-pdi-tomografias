@@ -1,3 +1,5 @@
+# código base: https://medium.com/data-science/canny-edge-detection-step-by-step-in-python-computer-vision-b49c3a2d8123
+
 from utils import in_file, out_file
 from PIL import Image
 import pydicom

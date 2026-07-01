@@ -1,3 +1,5 @@
+# fonte: https://medium.com/@julia.jgmf/removendo-fundo-de-imagens-com-python-71eef07e945e
+
 from utils import in_file, out_file
 from rembg import remove
 from PIL import Image
