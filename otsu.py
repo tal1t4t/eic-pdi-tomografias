@@ -11,7 +11,7 @@ def threshold_image(im, th):
     # se o pixel da imagem for maior q o limiar, ele recebe 1
     thresholded_im[im >= th] = 1
 
-    #retorna imagem binária
+    #retorna imagem binária num array numpy
     return thresholded_im
 
 #critério de otsu
