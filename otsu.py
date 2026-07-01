@@ -61,8 +61,24 @@ def abre_imagem(img):
     im = np.asarray(Image.open(in_file(img)).convert('L'))
     return im
 
+def salva_imagem_otsu(im_otsu, nome_img):
+    x, y = im_otsu.shape
+    png_otsu = Image.new('RGBA', (x, y))
+
+    TRANSP = (255, 255, 255, 0)
+    WHITE = (255, 255, 255, 255)
+    
+    for i in range(x):
+        for j in range(y):
+            png_otsu.putpixel((j, i), WHITE) if im_otsu[i, j] == 1 else png_otsu.putpixel((j, i), TRANSP)
+
+    nome_tratado = nome_img[:-4]
+    png_otsu.save(out_file(f'{nome_tratado}_otsu.png'))
+
 if __name__ == "__main__":
-    im = abre_imagem("img2.png")
+    nome_img = 'img2.png'
+    im = abre_imagem(nome_img)
     im_otsu = threshold_image(im, find_best_threshold(im))
 
     exibe_resultado(im, im_otsu)
+    salva_imagem_otsu(im_otsu, nome_img)
