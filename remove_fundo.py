@@ -3,12 +3,15 @@
 from utils import in_file, out_file
 from rembg import remove
 from PIL import Image
-from otsu import threshold_image, find_best_threshold, abre_imagem, salva_imagem_otsu
+# from otsu import threshold_image, find_best_threshold, abre_imagem, salva_imagem_otsu
 
-original = in_file('img2.png')
-sem_fundo = 'img2_semfundo.png'
 
-input = Image.open(original)
-output = remove(input)
+def remove_fundo(img):
+    original = Image.open(in_file(img))
+    output = remove(original)
+    output.save(out_file(f"semfundo_{img}"))
 
-output.save(out_file(sem_fundo))
+
+if __name__ == "__main__":
+    original = 'img2.png'
+    remove_fundo(original)
