@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from scipy import ndimage
 import tkinter
 
-nome_original = "img2"
+nome_original = "semfundo_img2"
 
 tam_kernel_gauss = 3
 
@@ -123,7 +123,7 @@ def non_max_suppression(img, D):
 
 #usando limite duplo para separar as bordas em fortes, médias e fracas a partir dos limiares passados nos parâmetros
 #se for necessário, calibre o filtro inserindo outros valores nos Ratios
-def threshold(img, lowThresholdRatio=0.05, highThresholdRatio=0.018):
+def threshold(img, lowThresholdRatio=0.05, highThresholdRatio=0.05):
     highThreshold = img.max() * highThresholdRatio #detecta o pixel de maior valor e calcula o limiar a partir dele
     lowThreshold = highThreshold * lowThresholdRatio
     #calcula o limiar para pixels fracos a partir do limiar para pixels fortes
@@ -214,8 +214,21 @@ def bordas_vermelhas(img_cinza, lowThresholdRatio, highThresholdRatio):
     img_contorno_vermelho.save(out_file(nome_img))
     return img_contorno_vermelho
 
-def mostra_tudo(original, sobel, non_max, limite_duplo, histerese, vermelha):
-    fig, ax = plt.subplots(4, 2, figsize=(50, 25))
+def sobrepostas(original, vermelha, lowThresholdRatio, highThresholdRatio):
+    original = original.convert("RGBA")
+    mesclada = Image.alpha_composite(original, vermelha)
+
+    baixo = str(lowThresholdRatio)
+    baixo = baixo.replace('.', '')
+
+    alto = str(highThresholdRatio)
+    alto = alto.replace('.', '')
+    mesclada.save(out_file(f"mesclada_{nome_original}_g{tam_kernel_gauss}_{baixo}_{alto}.png"))
+
+    return mesclada
+
+def mostra_tudo(original, sobel, non_max, limite_duplo, histerese, vermelha, mesclada):
+    fig, ax = plt.subplots(2, 4, figsize=(50, 25))
 
     ax[0, 0].imshow(original, cmap='gray')
     ax[0, 0].set_title("Original")
@@ -225,42 +238,40 @@ def mostra_tudo(original, sobel, non_max, limite_duplo, histerese, vermelha):
     ax[0, 1].set_title("Filtro Gaussiano")
     ax[0, 1].axis('off')
 
-    ax[1, 0].imshow(sobel, cmap='gray')
-    ax[1, 0].set_title("Filtro Sobel")
+    ax[0, 2].imshow(sobel, cmap='gray')
+    ax[0, 2].set_title("Filtro Sobel")
+    ax[0, 2].axis('off')
+
+    ax[0, 3].imshow(non_max, cmap='gray')
+    ax[0, 3].set_title("Supressão de não-máximos \nsobre filtro sobel")
+    ax[0, 3].axis('off')
+
+    ax[1, 0].imshow(limite_duplo, cmap='gray')
+    ax[1, 0].set_title("Limite duplo sobre \nsupressão de não-máximos")
     ax[1, 0].axis('off')
 
-    ax[1, 1].imshow(non_max, cmap='gray')
-    ax[1, 1].set_title("Supressão de não-máximos \nsobre filtro sobel")
+    ax[1, 1].imshow(histerese, cmap='gray')
+    ax[1, 1].set_title("Histerese sobre limite duplo")
     ax[1, 1].axis('off')
 
-    ax[2, 0].imshow(limite_duplo, cmap='gray')
-    ax[2, 0].set_title("Limite duplo sobre \nsupressão de não-máximos")
-    ax[2, 0].axis('off')
+    ax[1, 2].imshow(vermelha)
+    ax[1, 2].set_title("bordas em vermelho")
+    ax[1, 2].axis('off')
 
-    ax[2, 1].imshow(histerese, cmap='gray')
-    ax[2, 1].set_title("Histerese sobre limite duplo")
-    ax[2, 1].axis('off')
-
-    ax[3, 0].imshow(vermelha)
-    ax[3, 0].set_title("bordas em vermelho")
-    ax[3, 0].axis('off')
-
-    ax[3, 1].imshow(original, cmap='gray')
-    ax[3, 1].imshow(vermelha)
-    ax[3, 1].axis('off')
+    ax[1, 3].imshow(mesclada)
+    ax[1, 3].axis('off')
 
     plt.tight_layout()
     plt.show()
 
-def somente_contornos(original, vermelha):
+def somente_contornos(original, mesclada, ):
     fig, ax = plt.subplots(1, 2, figsize=(40, 20))
 
     ax[0].imshow(original, cmap="gray")
     ax[0].set_title("Original")
     ax[0].axis("off")
 
-    ax[1].imshow(original, cmap="gray")
-    ax[1].imshow(vermelha)
+    ax[1].imshow(mesclada)
     ax[1].set_title("Sobreposição do contorno vermelho")
     ax[1].axis("off")
 
@@ -297,15 +308,16 @@ if __name__ == '__main__':
 
     vermelha = bordas_vermelhas(histerese, lowThresholdRatio, highThresholdRatio)
 
+    mesclada = sobrepostas(array_para_imagem(original), vermelha, lowThresholdRatio, highThresholdRatio)
+
     resp = int(input("[1] Ver processo completo\n[2] comparar imagem original com contorno sobreposto\nSua resposta: "))
     while True:
         if resp == 1:
-            mostra_tudo(original, sobel, non_max, limite_duplo, histerese, vermelha)
+            mostra_tudo(original, sobel, non_max, limite_duplo, histerese, vermelha, mesclada)
             break
         elif resp == 2:
-            somente_contornos(original, vermelha)
+            somente_contornos(original, mesclada)
             break
         else:
             print("Comando inválido")
             resp = input("[1] Ver processo completo\n[2] comparar imagem original com contorno sobreposto\nSua resposta: ")
-
