@@ -1,6 +1,6 @@
 # código base: https://medium.com/data-science/canny-edge-detection-step-by-step-in-python-computer-vision-b49c3a2d8123
 
-from utils import in_file, out_file
+from utils import *
 from PIL import Image
 import pydicom
 import numpy as np
@@ -53,7 +53,10 @@ def aplicar_filtro(img):
 
     #salvamento da img
     img_gauss = array_para_imagem(saida)
-    img_gauss.save(out_file(f"{nome_original}_gauss{tam_kernel_gauss}.png"))
+    nome_img = f"{nome_original}_gauss{tam_kernel_gauss}.png"
+    # img_gauss.save(out_file(f"{nome_original}_gauss{tam_kernel_gauss}.png"))
+    img_gauss.save(out_gauss(nome_original, nome_img, tam_kernel_gauss))
+
     return saida
 
 def sobel_filters(img):
@@ -75,7 +78,9 @@ def sobel_filters(img):
 
     #salvamento da img
     img_sobel = array_para_imagem(g)
-    img_sobel.save(out_file(f"{nome_original}_g{tam_kernel_gauss}_sobel.png"))
+    nome_img = f"{nome_original}_g{tam_kernel_gauss}_sobel.png"
+    # img_sobel.save(out_file(f"{nome_original}_g{tam_kernel_gauss}_sobel.png"))
+    img_sobel.save(out_gauss(nome_original, nome_img, tam_kernel_gauss))
 
     return g, theta
 
@@ -118,12 +123,16 @@ def non_max_suppression(img, D):
                 pass
 
     img_naomax = array_para_imagem(Z)
-    img_naomax.save(out_file(f"{nome_original}_naomax_g{tam_kernel_gauss}.png"))
+
+    nome_img = f"{nome_original}_naomax_g{tam_kernel_gauss}.png"
+    # img_naomax.save(out_file(f"{nome_original}_naomax_g{tam_kernel_gauss}.png"))
+    img_naomax.save(out_gauss(nome_original, nome_img, tam_kernel_gauss))
+
     return Z
 
 #usando limite duplo para separar as bordas em fortes, médias e fracas a partir dos limiares passados nos parâmetros
 #se for necessário, calibre o filtro inserindo outros valores nos Ratios
-def threshold(img, lowThresholdRatio=0.05, highThresholdRatio=0.05):
+def threshold(img, lowThresholdRatio, highThresholdRatio):
     highThreshold = img.max() * highThresholdRatio #detecta o pixel de maior valor e calcula o limiar a partir dele
     lowThreshold = highThreshold * lowThresholdRatio
     #calcula o limiar para pixels fracos a partir do limiar para pixels fortes
@@ -156,9 +165,10 @@ def threshold(img, lowThresholdRatio=0.05, highThresholdRatio=0.05):
     alto = alto.replace('.', '')
 
     img_threshold = array_para_imagem(res)
-    img_threshold.save(out_file(f"{nome_original}_threshold_g{tam_kernel_gauss}_{baixo}_{alto}.png"))
-
-    return res, weak, strong, lowThresholdRatio, highThresholdRatio
+    nome_img = f"{nome_original}_threshold_g{tam_kernel_gauss}_{baixo}_{alto}.png"
+    # img_threshold.save(out_file(f"{nome_original}_threshold_g{tam_kernel_gauss}_{baixo}_{alto}.png"))
+    img_threshold.save(out_thresholds(nome_original, nome_img, tam_kernel_gauss, baixo, alto))
+    return res, weak, strong
 
 def hysteresis(img, baixo, alto, weak, strong=255):
 # analisa os pixels fracos verificando se ao redor deles há pelo menos um pixel forte.
@@ -185,7 +195,10 @@ def hysteresis(img, baixo, alto, weak, strong=255):
     alto = alto.replace('.', '')
 
     img_histerese = array_para_imagem(img)
-    img_histerese.save(out_file(f"{nome_original}_histerese_g{tam_kernel_gauss}_{baixo}_{alto}.png"))
+    nome_img = f"{nome_original}_histerese_g{tam_kernel_gauss}_{baixo}_{alto}.png"
+    # img_histerese.save(out_file(f"{nome_original}_histerese_g{tam_kernel_gauss}_{baixo}_{alto}.png"))
+    img_histerese.save(out_thresholds(nome_original, nome_img, tam_kernel_gauss, baixo, alto))
+    
     return img
 
 def bordas_vermelhas(img_cinza, lowThresholdRatio, highThresholdRatio):
@@ -210,8 +223,10 @@ def bordas_vermelhas(img_cinza, lowThresholdRatio, highThresholdRatio):
     alto = str(highThresholdRatio)
     alto = alto.replace('.', '')
 
-    nome_img = f"borda_verm_{nome_original}_gauss{3}_{baixo}_{alto}.png"
-    img_contorno_vermelho.save(out_file(nome_img))
+    nome_img = f"borda_verm_{nome_original}_gauss{tam_kernel_gauss}_{baixo}_{alto}.png"
+    # img_contorno_vermelho.save(out_file(nome_img))
+
+    img_contorno_vermelho.save(out_thresholds(nome_original, nome_img, tam_kernel_gauss, baixo, alto))
     return img_contorno_vermelho
 
 def sobrepostas(original, vermelha, lowThresholdRatio, highThresholdRatio):
@@ -302,7 +317,10 @@ if __name__ == '__main__':
 
     non_max = non_max_suppression(sobel, theta_s)
 
-    limite_duplo, pixel_fraco, pixel_forte, lowThresholdRatio, highThresholdRatio = threshold(non_max)
+    lowThresholdRatio = float(input("Determine o lowThresholdRatio: "))
+    highThresholdRatio = float(input("Determine o highThresholdRatio: "))
+
+    limite_duplo, pixel_fraco, pixel_forte = threshold(non_max, lowThresholdRatio, highThresholdRatio)
 
     histerese = hysteresis(limite_duplo, lowThresholdRatio, highThresholdRatio, pixel_fraco, pixel_forte)
 
