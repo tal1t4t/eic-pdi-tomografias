@@ -43,13 +43,14 @@ janela.mainloop()
 img_canny = cv2.Canny(img, t_lower.get(), t_upper.get())
 #fzr comando pra salvar imagem canny de acordo com os valores dos thresholds!
 
-fig, ax = plt.subplots(1, 2, figsize=(50, 25))
-ax[0].imshow(img, cmap='gray')
-ax[0].set_title("Original")
-ax[0].axis('off')
+if __name__ == '__main__':
+    fig, ax = plt.subplots(1, 2, figsize=(50, 25))
+    ax[0].imshow(img, cmap='gray')
+    ax[0].set_title("Original")
+    ax[0].axis('off')
 
-ax[1].imshow(img_canny, cmap='gray')
-ax[1].set_title("Canny")
-ax[1].axis('off')
+    ax[1].imshow(img_canny, cmap='gray')
+    ax[1].set_title("Canny")
+    ax[1].axis('off')
 
-plt.show()
+    plt.show()
