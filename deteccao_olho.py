@@ -1,3 +1,5 @@
+#código gerado pelo Claude
+
 import pydicom
 import numpy as np
 from rembg import remove
@@ -95,10 +97,13 @@ def detectar_olhos(gray, alpha, bordas_canny):
         perimetro = cv2.arcLength(c, True)
         if perimetro == 0:
             continue
+
+        # quanto mais próximo de 1 for a circularidade, mais parecido com um círculo é o contorno
         circularidade = 4 * np.pi * area / (perimetro ** 2)
         if circularidade < CIRCULARIDADE_MIN:
             continue
 
+        # boundingRect calcula o menor retângulo que envolve o contorno dado
         x, y, w, h = cv2.boundingRect(c)
         if h == 0:
             continue

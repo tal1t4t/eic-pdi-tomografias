@@ -1,2 +1,0 @@
-As imagens deste diretório são resultado do processamento das bordas de Canny,
-mas com o uso somente do filtro mediano no lugar do filtro gaussiano.
