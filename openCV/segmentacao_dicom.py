@@ -21,6 +21,72 @@ def normalizar_para_uint8(img):
     imgf = (imgf - imgf.min()) / (imgf.max() - imgf.min() + 1e-8)
     return (imgf * 255.0).astype(np.uint8)
 
+def analisar_e_colorir_contornos(contornos, hu, formato_img, usar_colormap=True):
+ 
+    # Para cada contorno, extrai a faixa de valores HU dentro dele e
+    # define uma cor com base nessa faixa.
+ 
+    img_colorida = np.zeros((*formato_img, 3), dtype=np.uint8)
+    info_contornos = []
+
+    # Faixas de HU aproximadas (ajuste conforme sua necessidade)
+    faixas_hu = [
+        ("ar", -1000, -500, (0, 0,   0)),   # preto
+        ("agua", 0, 10, (245, 167, 66)),   # azul claro
+        ("massa_branca", 20, 30, (0, 255, 0)), # verde
+        ("massa_cinzenta",   37, 45, (255, 255, 0)),   # ciano
+        ("sangue_coagulado",  50,  75, (0,   255, 255)), # amarelo
+        ("osso",           200, 3000, (0,   0,   255)),# vermelho
+    ]
+
+    def classificar_por_faixa(valor_medio):
+        for nome, minimo, maximo, cor in faixas_hu:
+            if minimo <= valor_medio < maximo:
+                return nome, cor
+        return "indefinido", (128, 128, 128)  # cinza
+
+    for i, c in enumerate(contornos):
+        # máscara apenas para esse contorno, preenchido
+        mask = np.zeros(formato_img, dtype=np.uint8)
+        cv2.drawContours(mask, [c], -1, 255, thickness=cv2.FILLED)
+
+        valores = hu[mask == 255]
+        if valores.size == 0:
+            continue
+
+        v_min, v_max = valores.min(), valores.max()
+        v_media = valores.mean()
+        v_mediana = np.median(valores)
+
+        if usar_colormap:
+            # normaliza a média para 0-255 dentro de uma faixa de interesse
+            # (ex: -200 a 400 HU cobre a maior parte de tecidos moles/ósseos)
+            norm = np.clip((v_media - (-200)) / (400 - (-200)), 0, 1)
+            valor_uint8 = np.uint8(norm * 255)
+            # cv2.applyColorMap espera um array; pegamos a cor de 1 pixel
+            cor_bgr = cv2.applyColorMap(np.array([[valor_uint8]], dtype=np.uint8),
+                                         cv2.COLORMAP_JET)[0, 0].tolist()
+            nome = "colormap"
+        else:
+            nome, cor_bgr = classificar_por_faixa(v_media)
+
+        # pinta a região do contorno com a cor definida
+        cv2.drawContours(img_colorida, [c], -1, cor_bgr, thickness=cv2.FILLED)
+
+        info_contornos.append({
+            "indice": i,
+            "area": cv2.contourArea(c),
+            "hu_min": float(v_min),
+            "hu_max": float(v_max),
+            "hu_media": float(v_media),
+            "hu_mediana": float(v_mediana),
+            "classificacao": nome,
+            "cor_bgr": cor_bgr,
+        })
+
+    return img_colorida, info_contornos
+
+
 def atualizar(x):
     inf = cv2.getTrackbarPos('Inferior', 'Canny')
     sup = cv2.getTrackbarPos('Superior', 'Canny')
@@ -42,12 +108,14 @@ def atualizar(x):
 
     for c in contornos:
         area = cv2.contourArea(c)
-        if area > 20:
+        if area > 35:
             contornos_fechados.append(c)
 
+#----código do Claude-----------------------------------------------------------------------------------------
+    img_segmentada, info = analisar_e_colorir_contornos(contornos_fechados, hu, img_closed.shape, usar_colormap=False)
+#-------------------------------------------------------------------------------------------------------------    
     img_contornada = img_semfundo.copy()
     cv2.drawContours(img_contornada, contornos_fechados, -1, (0, 0, 255), 1)
-
 
     # legenda para a imagem com as bordas de canny
     leg_inf = f'Inferior: {inf}'
@@ -69,14 +137,16 @@ def atualizar(x):
 
     #exibiçao
     cv2.imshow('Canny', img_canny)
-    cv2.imshow("Bordas dilatadas", dilated)
+    # cv2.imshow("Bordas dilatadas", dilated)
     cv2.imshow("Fechamento", img_closed)
     cv2.imshow("Contornada", img_contornada)
+
+    cv2.imshow("Segmentada por HU", img_segmentada)
 
     return img_canny, dilated, img_closed, img_contornada
 
 # ---------- pipeline original (HU -> janela -> remoção de fundo -> Canny) ----------
-ds = pydicom.dcmread(in_file('img2.dcm'))
+ds = pydicom.dcmread(in_file('img4.dcm'))
 
 # tirando do arquivo dicom as informações corretas para janelamento 
 wc = ds.WindowCenter
@@ -120,12 +190,13 @@ cv2.createTrackbar("Tamanho do kernel", "Fechamento", 3, 20, atualizar)
 
 cv2.imshow("Original", img_semfundo)
 # cv2.imshow("Mediana", img_mediana)
-cv2.imshow("Gaussian Blur", img_blur)
+# cv2.imshow("Gaussian Blur", img_blur)
 
 img_canny, img_dilated, img_closed, contornada = atualizar(0)
 
-# o que falta:
-# analisar intervalos de cores e segmentar
-
 cv2.waitKey(0)
 cv2.destroyAllWindows()
+
+
+# o que falta:
+# analisar intervalos de cores e segmentar
